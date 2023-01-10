@@ -8,6 +8,8 @@ defmodule R do
       %{xs: Transactions.make(Transactions.load_all())}
       |> Map.put(:items, [])
       |> Transactions.get_interest()
+      |> Transactions.get_checks()
+      |> Transactions.get_concur()
     )
     IO.inspect(stt.items, label: "Items")
     nil
