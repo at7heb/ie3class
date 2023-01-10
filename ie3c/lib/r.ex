@@ -6,9 +6,10 @@ defmodule R do
     # a = Transactions.load_all()
     stt = (
       %{xs: Transactions.make(Transactions.load_all())}
-      |> Map.put(items: [])
+      |> Map.put(:items, [])
       |> Transactions.get_interest()
     )
     IO.inspect(stt.items, label: "Items")
+    nil
   end
 end
