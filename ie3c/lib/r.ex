@@ -15,6 +15,8 @@ defmodule R do
     IO.inspect(stt.items, label: "Items")
     categorized = Enum.reduce(stt.xs, 0, fn elt, count -> count + (if elt.categorized do 1 else 0 end) end)
     total = length(stt.xs)
-    IO.puts("#{total} items, #{categorized} categorized")
+    IO.puts("#{total} transactions, #{categorized} categorized")
+    Enum.filter(stt.xs, fn elt -> elt.categorized == false end)
+    |> IO.inspect(label: "uncategorized")
   end
 end

@@ -53,15 +53,44 @@ alias Ie3c.Transactions.Item
     |> update_categorized(l)
   end
 
-  def get_paypals(%{xs: xss, items: items} = stt) do
+  def get_paypals(%{xs: xss} = stt) do
     l = Enum.filter(xss, fn elt -> elt.category == "Paypal Activity" end)
-    meeting_list = get_meetings(l)
-    new_items = (
-      Enum.map(l, fn elt -> %{ref: "Concur " <> elt.type, expense: elt.amount, date: elt.date, task: elt.task} end)
-      |> Enum.map(fn elt -> struct(Ie3c.Transactions.Item, elt) end)
-    )
-    %{stt | items: items ++ Item.make_numeric(new_items)}
+    l
+    |> get_meetings()
+    |> handle_the_meetings(stt)
     |> update_categorized(l)
+  end
+
+  def handle_the_meetings(meeting_list, %{xs: _xss, items: _items} = stt) do
+    Enum.reduce(meeting_list, stt, fn meeting, state -> handle_a_meeting(meeting, state) end)
+  end
+
+  def handle_a_meeting(meeting, %{xs: xss, items: items} = stt) do
+    meeting_items = (
+      Enum.filter(xss, fn elt -> String.contains?(elt.pref, "-Meeting \##{meeting}:") end)
+      |> Enum.map(fn elt -> make_a_meeting_item(elt) end)
+      |> Item.make_numeric()
+    )
+    income = Enum.reduce(meeting_items, 0, fn item, acc -> acc + item.income end)
+    expense = Enum.reduce(meeting_items, 0, fn item, acc -> acc + item.expense end)
+    date = Map.fetch!(Enum.at(meeting_items, 0), :date)
+    ref = get_a_meeting_ref(Enum.at(meeting_items, 0))
+    item = %Item{}
+    item = %{item|ref: ref, date: date, income: income, expense: expense}
+    %{stt | items: items ++ [item]}
+  end
+
+  def make_a_meeting_item(%Transaction{amount: amount, date: date, pref: pref} = _xn) do
+    income = if String.starts_with?(amount, "-") do 0 else amount end
+    expense = if String.starts_with?(amount, "-") do String.slice(amount, 1..-1//1) else 0 end
+    rv = %Item{}
+    %{rv|ref: pref, date: date, income: income, expense: expense}
+  end
+
+  def get_a_meeting_ref(%Item{ref: ref}) do
+    ~r/\#(?<ref>.*) - /
+    |> Regex.named_captures(ref)
+    |> Map.fetch!("ref")
   end
 
   def get_meetings(xn_list) do
@@ -70,7 +99,7 @@ alias Ie3c.Transactions.Item
       |> Enum.map(fn elt -> extract_meeting_number(elt) end)
       |> MapSet.new()
     )
-    meeting_set
+    MapSet.to_list(meeting_set)
   end
 
   def extract_meeting_number(%Transaction{pref: ref} = _xn) do
