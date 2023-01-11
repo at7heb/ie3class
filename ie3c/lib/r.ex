@@ -2,10 +2,11 @@ defmodule R do
   alias Ie3c.Transactions.Transactions
   # alias Ie3C.Transactions.Transaction
 
-  def r do
+  def r, do: r("/Users/howard/Documents/dev/ie3class/ie3c/priv/static/2022-all.csv")
+  def r(filename) do
     # a = Transactions.load_all()
     stt = (
-      %{xs: Transactions.make(Transactions.load_all())}
+      %{xs: Transactions.make(Transactions.load_all(filename))}
       |> Map.put(:items, [])
       |> Transactions.get_interest()
       |> Transactions.get_checks()
@@ -18,5 +19,14 @@ defmodule R do
     IO.puts("#{total} transactions, #{categorized} categorized")
     Enum.filter(stt.xs, fn elt -> elt.categorized == false end)
     |> IO.inspect(label: "uncategorized")
+  end
+
+  def all do
+    months = ~w/01 02 03 04 05 06 07 08 09 10 11 12/
+    Enum.map(months, fn m ->
+      (IO.puts("--------------------------- #{m} ---------------------------")
+      r("/Users/howard/Documents/dev/ie3class/ie3c/priv/static/2022-#{m}.csv"))
+    end)
+    nil
   end
 end

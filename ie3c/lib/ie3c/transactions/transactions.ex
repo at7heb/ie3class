@@ -2,11 +2,11 @@ defmodule Ie3c.Transactions.Transactions do
 alias Ie3c.Transactions.Transaction
 alias Ie3c.Transactions.Item
 
-  def load_all do
+  def load_all(file) do
     headers = [:account, :date, :amount, :currency,
     :category, :type, :task, :code, :pref, :cref,
     :bookkey, :exported, :export_date, :exporter_id]
-    "/Users/howard/Documents/dev/ie3class/ie3c/priv/static/2022-all.csv"
+    file
      |> Path.expand()
      |> File.stream!
      |> Enum.slice(1..-1//1)
