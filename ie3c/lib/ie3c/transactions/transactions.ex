@@ -44,13 +44,43 @@ alias Ie3c.Transactions.Item
   end
 
   def get_concur(%{xs: xss, items: items} = stt) do
+    #expense concur items
     l = Enum.filter(xss, fn elt -> elt.category == "Concur Activity" end)
-    new_items = (
-      Enum.map(l, fn elt -> %{ref: "Concur " <> elt.type, expense: elt.amount, date: elt.date, task: elt.task} end)
-      |> Enum.map(fn elt -> struct(Ie3c.Transactions.Item, elt) end)
+    refs = (
+      Enum.map(l, fn elt -> elt.pref end)
+      |> Enum.uniq()
     )
-    %{stt | items: items ++ Item.make_numeric(new_items)}
+    new_items = Enum.map(refs, fn ref -> make_concur_item(ref, l) end)
+    %{stt | items: items ++ new_items}
     |> update_categorized(l)
+  end
+
+  def make_concur_item(ref, item_list) do
+    items = Enum.filter(item_list, fn elt -> ref == elt.pref end)
+    income = (
+      Enum.filter(items, fn elt -> not String.starts_with?(elt.amount, "-") end)
+      |> Enum.map(fn elt -> elt.amount end)
+      |> Enum.map(fn elt -> Item.make_numeric(elt) end)
+      |> Enum.sum()
+    )
+    expense = (
+      Enum.filter(items, fn elt -> String.starts_with?(elt.amount, "-") end)
+      |> Enum.map(fn elt -> elt.amount end)
+      |> Enum.map(fn elt -> Item.make_numeric(elt) end)
+      |> Enum.sum()
+    )
+    date = (
+      Enum.map(items, fn elt -> elt.date end)
+      |> Enum.sort()
+      |> Enum.at(0)
+    )
+    type = (
+      Enum.map(items, fn elt -> elt.type end)
+      |> Enum.at(0)
+    )
+    struct(
+      Item,
+      %{ref: "concur #{type} #{ref}", date: date, income: income, expense: expense, task: ""})
   end
 
   def get_paypals(%{xs: xss} = stt) do
