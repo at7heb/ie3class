@@ -9,9 +9,5 @@ erl_crash.dump
 /config/*.secret.exs
 .elixir_ls/
 *.csv
-.DS_Store
 *.tmp
 *.swp
-*/.DS_Store
-**/.DS_Store
-/**/.DS_Store
