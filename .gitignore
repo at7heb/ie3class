@@ -12,3 +12,5 @@ erl_crash.dump
 .DS_Store
 *.tmp
 *.swp
+*/.DS_Store
+**/.DS_Store
