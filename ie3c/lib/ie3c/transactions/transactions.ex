@@ -1,17 +1,31 @@
 defmodule Ie3c.Transactions.Transactions do
-alias Ie3c.Transactions.Transaction
-alias Ie3c.Transactions.Item
+  alias Ie3c.Transactions.Transaction
+  alias Ie3c.Transactions.Item
 
   def load_all(file) do
-    headers = [:account, :date, :amount, :currency,
-    :category, :type, :task, :code, :pref, :cref,
-    :bookkey, :exported, :export_date, :exporter_id]
+    headers = [
+      :account,
+      :date,
+      :amount,
+      :currency,
+      :category,
+      :type,
+      :task,
+      :code,
+      :pref,
+      :cref,
+      :bookkey,
+      :exported,
+      :export_date,
+      :exporter_id
+    ]
+
     file
-     |> Path.expand()
-     |> File.stream!
-     |> Enum.slice(1..-1//1)
-     |> CSV.decode!(separator: ?,, headers: headers)
-     |> Enum.sort(fn a, b -> a.date <= b.date end)
+    |> Path.expand()
+    |> File.stream!()
+    |> Enum.slice(1..-1//1)
+    |> CSV.decode!(separator: ?,, headers: headers)
+    |> Enum.sort(fn a, b -> a.date <= b.date end)
   end
 
   def make(a) when is_list(a) do
@@ -25,66 +39,73 @@ alias Ie3c.Transactions.Item
         }
   def get_interest(%{xs: xss, items: items} = stt) do
     l = Enum.filter(xss, fn elt -> elt.category == "Interest Paid" end)
-    new_items = (
+
+    new_items =
       Enum.map(l, fn elt -> %{ref: "Interest", income: elt.amount, date: elt.date} end)
       |> Enum.map(fn elt -> struct(Ie3c.Transactions.Item, elt) end)
-    )
+
     %{stt | items: items ++ Item.make_numeric(new_items)}
     |> update_categorized(l)
   end
 
   def get_checks(%{xs: xss, items: items} = stt) do
     l = Enum.filter(xss, fn elt -> String.contains?(elt.pref, "CHECK PAIDWIL") end)
-    new_items = (
+
+    new_items =
       Enum.map(l, fn elt -> %{ref: "Check " <> elt.cref, expense: elt.amount, date: elt.date} end)
       |> Enum.map(fn elt -> struct(Ie3c.Transactions.Item, elt) end)
-    )
+
     %{stt | items: items ++ Item.make_numeric(new_items)}
     |> update_categorized(l)
   end
 
   def get_concur(%{xs: xss, items: items} = stt) do
-    #expense concur items
+    # expense concur items
     l = Enum.filter(xss, fn elt -> elt.category == "Concur Activity" end)
-    refs = (
+
+    refs =
       Enum.map(l, fn elt -> elt.pref end)
       |> Enum.uniq()
-    )
+
     new_items = Enum.map(refs, fn ref -> make_concur_item(ref, l) end)
+
     %{stt | items: items ++ new_items}
     |> update_categorized(l)
   end
 
   def make_concur_item(ref, item_list) do
     items = Enum.filter(item_list, fn elt -> ref == elt.pref end)
-    income = (
+
+    income =
       Enum.filter(items, fn elt -> not String.starts_with?(elt.amount, "-") end)
       |> Enum.map(fn elt -> elt.amount end)
       |> Enum.map(fn elt -> Item.make_numeric(elt) end)
       |> Enum.sum()
-    )
-    expense = (
+
+    expense =
       Enum.filter(items, fn elt -> String.starts_with?(elt.amount, "-") end)
       |> Enum.map(fn elt -> elt.amount end)
       |> Enum.map(fn elt -> Item.make_numeric(elt) end)
       |> Enum.sum()
-    )
-    date = (
+
+    date =
       Enum.map(items, fn elt -> elt.date end)
       |> Enum.sort()
       |> Enum.at(0)
-    )
-    type = (
+
+    type =
       Enum.map(items, fn elt -> elt.type end)
       |> Enum.at(0)
-    )
+
     struct(
       Item,
-      %{ref: "concur #{type} #{ref}", date: date, income: income, expense: expense, task: ""})
+      %{ref: "concur #{type} #{ref}", date: date, income: income, expense: expense, task: ""}
+    )
   end
 
   def get_paypals(%{xs: xss} = stt) do
     l = Enum.filter(xss, fn elt -> elt.category == "Paypal Activity" end)
+
     l
     |> get_meetings()
     |> handle_the_meetings(stt)
@@ -96,25 +117,37 @@ alias Ie3c.Transactions.Item
   end
 
   def handle_a_meeting(meeting, %{xs: xss, items: items} = stt) do
-    meeting_items = (
+    meeting_items =
       Enum.filter(xss, fn elt -> String.contains?(elt.pref, "-Meeting \##{meeting}:") end)
       |> Enum.map(fn elt -> make_a_meeting_item(elt) end)
       |> Item.make_numeric()
-    )
+
     income = Enum.reduce(meeting_items, 0, fn item, acc -> acc + item.income end)
     expense = Enum.reduce(meeting_items, 0, fn item, acc -> acc + item.expense end)
     date = Map.fetch!(Enum.at(meeting_items, 0), :date)
     ref = get_a_meeting_ref(Enum.at(meeting_items, 0))
     item = %Item{}
-    item = %{item|ref: ref, date: date, income: income, expense: expense}
+    item = %{item | ref: ref, date: date, income: income, expense: expense}
     %{stt | items: items ++ [item]}
   end
 
   def make_a_meeting_item(%Transaction{amount: amount, date: date, pref: pref} = _xn) do
-    income = if String.starts_with?(amount, "-") do 0 else amount end
-    expense = if String.starts_with?(amount, "-") do String.slice(amount, 1..-1//1) else 0 end
+    income =
+      if String.starts_with?(amount, "-") do
+        0
+      else
+        amount
+      end
+
+    expense =
+      if String.starts_with?(amount, "-") do
+        String.slice(amount, 1..-1//1)
+      else
+        0
+      end
+
     rv = %Item{}
-    %{rv|ref: pref, date: date, income: income, expense: expense}
+    %{rv | ref: pref, date: date, income: income, expense: expense}
   end
 
   def get_a_meeting_ref(%Item{ref: ref}) do
@@ -124,11 +157,11 @@ alias Ie3c.Transactions.Item
   end
 
   def get_meetings(xn_list) do
-    meeting_set = (
+    meeting_set =
       Enum.filter(xn_list, fn elt -> String.contains?(elt.pref, "-Meeting #") end)
       |> Enum.map(fn elt -> extract_meeting_number(elt) end)
       |> MapSet.new()
-    )
+
     MapSet.to_list(meeting_set)
   end
 
