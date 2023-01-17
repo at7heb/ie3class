@@ -48,6 +48,24 @@ defmodule Ie3c.Transactions.Transactions do
     |> update_categorized(l)
   end
 
+  def get_ach_xfers(%{xs: xss, items: items} = stt) do
+    l = Enum.filter(xss, fn elt -> String.contains?(elt.category, "Miscellaneous ACH Debit") end)
+
+    new_items =
+      Enum.map(l, fn elt ->
+        %{
+          ref: "#{elt.pref} #{elt.type}",
+          income: maybe_income(elt.amount),
+          expense: maybe_expense(elt.amount),
+          date: elt.date
+        }
+      end)
+      |> Enum.map(fn elt -> struct(Ie3c.Transactions.Item, elt) end)
+
+    %{stt | items: items ++ Item.make_numeric(new_items)}
+    |> update_categorized(l)
+  end
+
   def get_checks(%{xs: xss, items: items} = stt) do
     l = Enum.filter(xss, fn elt -> String.contains?(elt.pref, "CHECK PAIDWIL") end)
 
@@ -180,6 +198,20 @@ defmodule Ie3c.Transactions.Transactions do
     cond do
       xaction in xaction_list -> %{xaction | categorized: true}
       true -> xaction
+    end
+  end
+
+  def maybe_income(amt) do
+    cond do
+      String.starts_with?(amt, "-") -> 0
+      true -> amt
+    end
+  end
+
+  def maybe_expense(amt) do
+    cond do
+      String.starts_with?(amt, "-") -> amt
+      true -> 0
     end
   end
 end

@@ -13,6 +13,7 @@ defmodule R do
       |> Transactions.get_checks()
       |> Transactions.get_concur()
       |> Transactions.get_paypals()
+      |> Transactions.get_ach_xfers()
 
     # IO.puts("File #{filename}")
     # categorized = lengt(Enum.filter(stt.xs, fn elt -> elt.categorized end))
