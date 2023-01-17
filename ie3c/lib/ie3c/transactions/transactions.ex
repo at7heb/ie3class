@@ -66,6 +66,40 @@ defmodule Ie3c.Transactions.Transactions do
     |> update_categorized(l)
   end
 
+  def get_rebates(%{xs: xss, items: items} = stt) do
+    l = Enum.filter(xss, fn elt -> String.contains?(elt.pref, "REBATE") end)
+
+    new_items =
+      Enum.map(l, fn elt ->
+        %{
+          ref: "#{elt.pref} (#{elt.category})",
+          income: elt.amount,
+          date: elt.date
+        }
+      end)
+      |> Enum.map(fn elt -> struct(Ie3c.Transactions.Item, elt) end)
+
+    %{stt | items: items ++ Item.make_numeric(new_items)}
+    |> update_categorized(l)
+  end
+
+  def get_mail_deposits(%{xs: xss, items: items} = stt) do
+    l = Enum.filter(xss, fn elt -> String.contains?(elt.pref, "BANK BY MAIL DEPOSIT") end)
+
+    new_items =
+      Enum.map(l, fn elt ->
+        %{
+          ref: "#{elt.pref}",
+          income: elt.amount,
+          date: elt.date
+        }
+      end)
+      |> Enum.map(fn elt -> struct(Ie3c.Transactions.Item, elt) end)
+
+    %{stt | items: items ++ Item.make_numeric(new_items)}
+    |> update_categorized(l)
+  end
+
   def get_checks(%{xs: xss, items: items} = stt) do
     l = Enum.filter(xss, fn elt -> String.contains?(elt.pref, "CHECK PAIDWIL") end)
 

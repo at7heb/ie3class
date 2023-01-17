@@ -14,6 +14,8 @@ defmodule R do
       |> Transactions.get_concur()
       |> Transactions.get_paypals()
       |> Transactions.get_ach_xfers()
+      |> Transactions.get_rebates()
+      |> Transactions.get_mail_deposits()
 
     # IO.puts("File #{filename}")
     # categorized = lengt(Enum.filter(stt.xs, fn elt -> elt.categorized end))
